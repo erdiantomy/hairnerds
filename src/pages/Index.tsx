@@ -2,14 +2,15 @@ import { useState, useEffect, useRef } from "react";
 
 const SECTIONS = [
   "cover", "snapshot", "ecosystem", "social", "ecommerce",
-  "competitors", "gaps", "solution", "ai", "roadmap", "investment", "close"
+  "competitors", "gaps", "solution", "ai", "roadmap", "investment", "close", "jvmodel"
 ];
 
 const SECTION_LABELS: Record<string, string> = {
   cover: "Cover", snapshot: "Snapshot", ecosystem: "Ecosystem",
   social: "Social Audit", ecommerce: "Revenue Intel", competitors: "Competitors",
   gaps: "7 Gaps", solution: "Hairnerds OS", ai: "AI & Gamification",
-  roadmap: "Roadmap", investment: "Investment", close: "Next Steps"
+  roadmap: "Roadmap", investment: "Investment", close: "Next Steps",
+  jvmodel: "JV Model"
 };
 
 function Counter({ end, prefix = "", suffix = "", duration = 1800 }: { end: number; prefix?: string; suffix?: string; duration?: number }) {
@@ -603,6 +604,23 @@ export default function HairnerdsProposal() {
           <div style={{ fontSize: 10, color: "#444", fontFamily: "'DM Sans',sans-serif", marginTop: 16, letterSpacing: 1, textTransform: "uppercase" }}>Confidential · For Hairnerds Studio Founders Only</div>
         </div>
       </div>);
+
+      case "jvmodel": return (
+        <div style={{ margin: "-32px -20px -80px", position: "relative" }}>
+          <iframe
+            src="/jv-simulator.html"
+            style={{
+              width: "100vw",
+              height: "calc(100vh - 90px)",
+              border: "none",
+              background: "#0a0a0a",
+              display: "block",
+              marginLeft: "calc(-50vw + 50%)",
+            }}
+            title="JV Revenue Simulator"
+          />
+        </div>
+      );
 
       default: return null;
     }
