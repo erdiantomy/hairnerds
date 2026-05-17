@@ -1,18 +1,147 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JV Simulator</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JV Simulator — TOMS Ventures × Hairnerds</title>
   <style>
-    body { margin: 0; background: #0a0a0a; color: #c8a97e; font-family: system-ui; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    html, body { margin: 0; padding: 0; background: #0a0a0a; font-family: system-ui, -apple-system, sans-serif; }
+    * { box-sizing: border-box; }
+    #root { min-height: 100vh; }
+    input[type=range] { -webkit-appearance: none; appearance: none; background: transparent; }
+    input[type=range]:focus { outline: none; }
+    input[type=checkbox] { cursor: pointer; }
+    button { font-family: inherit; }
+    .loading { color: #c8a97e; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-size: 13px; letter-spacing: 2px; }
   </style>
+  <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+  <script crossorigin src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
 </head>
 <body>
-  <div style="text-align:center">
-    <div style="font-size:13px;letter-spacing:2px;margin-bottom:8px">TOMS VENTURES × HAIRNERDS</div>
-    <div style="font-size:24px;font-weight:700;color:#f5f5f5">JV Revenue Simulator</div>
-    <div style="font-size:12px;color:#666;margin-top:8px">Full interactive version loading soon.</div>
-  </div>
+  <div id="root"><div class="loading">LOADING SIMULATOR…</div></div>
+  <script type="text/babel" data-presets="react">
+    const { useState, useMemo } = React;
+    const { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, AreaChart, Area } = Recharts;
+    const C={bg:'#0a0a0a',card:'#141414',cardHover:'#1c1c1c',border:'#262626',text:'#f5f5f5',textDim:'#9ca3af',textMore:'#6b7280',gold:'#c8a97e',goldBright:'#e8c98a',green:'#4ade80',red:'#f87171',blue:'#60a5fa',purple:'#a78bfa',amber:'#fbbf24',cyan:'#22d3ee'};
+    const HN={outlets:6,serviceGMV:12000,retailGMV:2500,marketplaceGMVMin:5280,marketplaceGMVMax:14600,avgServiceTicket:0.15,avgRetailTicket:0.075,avgMarketplaceTicket:0.1};
+    const DO={outletsPerClient:3,serviceGMVperOutlet:1500,retailGMVperOutlet:200,marketplaceGMVperClient:500};
+    const COG={bookingService:3288,walkInService:2800,retail:1500,marketplace:3500};
+    const FC=250,EPO=5;
+    const MODS=[{key:'crm',name:'CRM Pro',type:'outlet',price:1.5,y2:true,color:'#4ade80'},{key:'hris',name:'HRIS + Payroll',type:'employee',price:0.075,y2:true,color:'#22d3ee'},{key:'inventory',name:'Inventory',type:'outlet',price:1.0,y2:true,color:'#60a5fa'},{key:'analytics',name:'Analytics Pro',type:'chain',price:2.0,y2:true,color:'#a78bfa'},{key:'marketing',name:'Marketing Engine',type:'outlet',price:0.75,y2:true,color:'#fbbf24'},{key:'ai',name:'AI Concierge',type:'chain',price:3.0,y3:true,color:'#e8c98a'}];
+    const fmtRp=(v)=>{if(!v)return'Rp 0';const s=v<0?'-':'',a=Math.abs(v);if(a>=1000)return s+'Rp '+(a/1000).toFixed(2)+'B';if(a>=1)return s+'Rp '+a.toFixed(0)+'M';return s+'Rp '+(a*1000).toFixed(0)+'K';};
+    const fmtPct=(v)=>v.toFixed(1)+'%';
+    const txnFee=(t,r,m)=>Math.max(t*1e6*(r/100),m);
+    function modARR(outlets,adopt){let t=0;MODS.forEach(m=>{if(m.type==='outlet')t+=outlets*m.price*12;else if(m.type==='employee')t+=outlets*EPO*m.price*12;else t+=m.price*12;});return t*(adopt/100);}
+
+    function App(){
+      const[oc,setOc]=useState(0),[opc,setOpc]=useState(3),[gpv,setGpv]=useState(1500),[hmf,setHmf]=useState(false);
+      const[br,setBr]=useState(5),[bm,setBm]=useState(7500),[pr,setPr]=useState(3),[pm,setPm]=useState(3000);
+      const[mr,setMr]=useState(3.5),[mm,setMm]=useState(3500),[brt,setBrt]=useState(70);
+      const[bs,setBs]=useState(50),[ss,setSs]=useState(5),[si,setSi]=useState(5),[rr,setRr]=useState(5);
+      const[ma,setMa]=useState(0),[cap,setCap]=useState(1200),[vm,setVm]=useState(5);
+      const[adv,setAdv]=useState(false),[mode,setMode]=useState('realistic');
+
+      const mp=useMemo(()=>{switch(mode){case'pessimistic':return{brm:0.6,mrm:0.7,brc:50,cac:30,scr:0.12,csp:40,gm:0.85,gr:[1,1.5,2,2.5,3],ar:[0,10,20,30,40],label:'PESSIMISTIC',color:C.red,desc:'Slow adoption, rate pushback, flat util.'};case'optimistic':return{brm:1.1,mrm:1.1,brc:85,cac:2,scr:0.08,csp:15,gm:1.15,gr:[1,4,10,20,35],ar:[0,35,65,85,95],label:'OPTIMISTIC',color:C.green,desc:'Strong PMF, viral B2B, full D2C.'};default:return{brm:1.0,mrm:1.0,brc:null,cac:5,scr:0.10,csp:25,gm:1.0,gr:[1,3,6,10,15],ar:[0,20,45,65,80],label:'REALISTIC',color:C.gold,desc:'Base case with module ramp Y2-Y5.'};}},[mode]);
+
+      const calc=useMemo(()=>{
+        const eBR=br*mp.brm,eMR=mr*mp.mrm,eBr=mp.brc!==null?Math.min(brt,mp.brc):brt;
+        const hSG=HN.serviceGMV*mp.gm,hRG=HN.retailGMV*mp.gm,hMG=(hmf?HN.marketplaceGMVMax:HN.marketplaceGMVMin)*mp.gm;
+        const hST=hSG/HN.avgServiceTicket,hBT=hST*(eBr/100),hWT=hST*(1-eBr/100),hRT=hRG/HN.avgRetailTicket,hMT=hMG/HN.avgMarketplaceTicket;
+        const hBR=hBT*txnFee(HN.avgServiceTicket,eBR,bm)/1e6,hWR=hWT*txnFee(HN.avgServiceTicket,pr,pm)/1e6,hRR=hRT*txnFee(HN.avgRetailTicket,pr,pm)/1e6,hMR=hMT*txnFee(HN.avgMarketplaceTicket,eMR,mm)/1e6;
+        const hTx=hBR+hWR+hRR+hMR,hCG=(hBT*COG.bookingService+hWT*COG.walkInService+hRT*COG.retail+hMT*COG.marketplace)/1e6,hMod=modARR(HN.outlets,ma);
+        const oSG=oc*opc*gpv,oRG=oc*opc*DO.retailGMVperOutlet,oMG=oc*DO.marketplaceGMVperClient;
+        const oST=oSG/HN.avgServiceTicket,oBT=oST*(eBr/100),oWT=oST*(1-eBr/100),oRT=oRG/HN.avgRetailTicket,oMT=oMG/HN.avgMarketplaceTicket;
+        const oTx=(oBT*txnFee(HN.avgServiceTicket,eBR,bm)+oWT*txnFee(HN.avgServiceTicket,pr,pm)+oRT*txnFee(HN.avgRetailTicket,pr,pm)+oMT*txnFee(HN.avgMarketplaceTicket,eMR,mm))/1e6;
+        const oCG=(oBT*COG.bookingService+oWT*COG.walkInService+oRT*COG.retail+oMT*COG.marketplace)/1e6,oMod=oc*modARR(opc,ma),oRev=oTx+oMod;
+        const tTx=hTx+oTx,tMod=hMod+oMod,tRev=tTx+tMod,tCOGS=hCG+oCG+tMod*0.10+FC;
+        const gp=tRev-tCOGS,gm2=tRev>0?(gp/tRev)*100:0;
+        const sSteps=Math.floor(oc/ss),mSal=bs+sSteps*si,aSal=mSal*12;
+        const eng=Math.floor(oc/10)*300,cs=30+oc*mp.csp,sc=oRev*mp.scr,mkt=100+oc*mp.cac,roy=tRev*(rr/100);
+        const opex=aSal+250+eng+cs+sc+mkt+roy,ebitda=gp-opex;
+        const uDiv=Math.max(0,ebitda*0.5),uInc=aSal+roy+uDiv;
+        const burn=ebitda<0?-ebitda:0,mBurn=burn/12,runway=mBurn>0?cap/mBurn:999;
+        const tTxC=hBT+hWT+hRT+hMT+oBT+oWT+oRT+oMT;
+        const rc=[{name:'HN Bookings',value:hBR,color:C.gold},{name:'HN POS/Retail',value:hWR+hRR,color:C.goldBright},{name:'HN Marketplace',value:hMR,color:C.blue},{name:'HN Modules',value:hMod,color:C.purple},{name:'Others (txn)',value:oTx,color:C.cyan},{name:'Others (mod)',value:oMod,color:C.green}].filter(r=>r.value>0.1);
+        return{hTx,oTx,hMod,oMod,tTx,tMod,tRev,tCOGS,gp,gm2,aSal,mSal,roy,opex,ebitda,uDiv,uInc,burn,mBurn,runway,tTxC,rc,hBR,hWR,hRR,hMR,hBT,hWT,hRT,hMT,hMG};
+      },[oc,opc,gpv,hmf,br,bm,pr,pm,mr,mm,brt,bs,ss,si,rr,ma,cap,mp]);
+
+      const myd=useMemo(()=>{
+        const d=[];const eBR=br*mp.brm,eMR=mr*mp.mrm,eBr=mp.brc!==null?Math.min(brt,mp.brc):brt;
+        const grs=mp.gr.map(m=>Math.round(oc*m)),arp=mp.ar;
+        for(let y=1;y<=5;y++){
+          const cc=Math.max(grs[y-1],y===1?oc:d[y-2].clients),ya=arp[y-1];
+          const hSG=HN.serviceGMV*mp.gm,hRG=HN.retailGMV*mp.gm,hMG=(hmf?HN.marketplaceGMVMax:HN.marketplaceGMVMin)*mp.gm;
+          const hST=hSG/HN.avgServiceTicket,hBT=hST*(eBr/100),hWT=hST*(1-eBr/100),hRT=hRG/HN.avgRetailTicket,hMT=hMG/HN.avgMarketplaceTicket;
+          const hTx=(hBT*txnFee(HN.avgServiceTicket,eBR,bm)+hWT*txnFee(HN.avgServiceTicket,pr,pm)+hRT*txnFee(HN.avgRetailTicket,pr,pm)+hMT*txnFee(HN.avgMarketplaceTicket,eMR,mm))/1e6;
+          const hMod=modARR(HN.outlets,ya);
+          const oSG=cc*opc*gpv,oRG=cc*opc*DO.retailGMVperOutlet,oMG=cc*DO.marketplaceGMVperClient;
+          const oST=oSG/HN.avgServiceTicket,oBT=oST*(eBr/100),oWT=oST*(1-eBr/100),oRT=oRG/HN.avgRetailTicket,oMT=oMG/HN.avgMarketplaceTicket;
+          const oTx=(oBT*txnFee(HN.avgServiceTicket,eBR,bm)+oWT*txnFee(HN.avgServiceTicket,pr,pm)+oRT*txnFee(HN.avgRetailTicket,pr,pm)+oMT*txnFee(HN.avgMarketplaceTicket,eMR,mm))/1e6;
+          const oMod=cc*modARR(opc,ya);
+          const txR=hTx+oTx,mdR=hMod+oMod,totR=txR+mdR;
+          const txC=(hBT*COG.bookingService+hWT*COG.walkInService+hRT*COG.retail+hMT*COG.marketplace+oBT*COG.bookingService+oWT*COG.walkInService+oRT*COG.retail+oMT*COG.marketplace)/1e6;
+          const totC=txC+mdR*0.10+FC;
+          const sS=Math.floor(cc/ss),aS=(bs+sS*si)*12,eng=Math.floor(cc/10)*300,cs2=30+cc*mp.csp,mkt=100+cc*mp.cac,sal2=(oTx+oMod)*mp.scr,roy2=totR*(rr/100);
+          const opx=aS+250+eng+cs2+sal2+mkt+roy2,eb=totR-totC-opx,dv=Math.max(0,eb*0.5),inc=aS+roy2+dv;
+          d.push({year:'Y'+y,clients:cc,adoption:ya,txnRevenue:txR,moduleRevenue:mdR,revenue:totR,ebitda:eb,salary:aS,royalty:roy2,dividend:dv,income:inc});
+        }return d;
+      },[oc,opc,gpv,hmf,br,bm,pr,pm,mr,mm,brt,bs,ss,si,rr,mp]);
+
+      const mcv=useMemo(()=>{const o=5,sG=o*gpv,rG=o*DO.retailGMVperOutlet,mG=DO.marketplaceGMVperClient;const sT=sG/HN.avgServiceTicket,bT=sT*0.7,wT=sT*0.3,rT=rG/HN.avgRetailTicket,mT=mG/HN.avgMarketplaceTicket;const tx=(bT*txnFee(HN.avgServiceTicket,br,bm)+wT*txnFee(HN.avgServiceTicket,pr,pm)+rT*txnFee(HN.avgRetailTicket,pr,pm)+mT*txnFee(HN.avgMarketplaceTicket,mr,mm))/1e6;const md=modARR(o,75);return{tx,md,total:tx+md};},[br,bm,pr,pm,mr,mm,gpv]);
+
+      const y5R=myd[4]?.revenue||0,val=y5R*vm,ue=val*0.5;
+      const rc=calc.runway>=24?C.green:calc.runway>=12?C.amber:C.red;
+      const rbp=Math.min(100,(calc.runway/36)*100);
+
+      const preset=(p)=>{if(p==='a'){setOc(0);setHmf(false);setMa(0);}else if(p==='b'){setOc(0);setHmf(true);setMa(0);}else if(p==='c'){setOc(10);setHmf(true);setMa(0);}else if(p==='d'){setOc(30);setHmf(true);setMa(25);}else if(p==='e'){setOc(100);setHmf(true);setMa(50);}else if(p==='f'){setOc(200);setHmf(true);setMa(80);}};
+
+      const S=({l,v,set,min,max,step,d,a})=>{const c2=a||C.gold;return(<div style={{marginBottom:'12px'}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'4px'}}><div style={{fontSize:'11px',color:C.textDim}}>{l}</div><div style={{fontSize:'13px',fontWeight:600,color:c2}}>{d}</div></div><input type="range" min={min} max={max} step={step} value={v} onChange={e=>set(parseFloat(e.target.value))} style={{width:'100%',accentColor:c2,cursor:'pointer'}}/></div>);};
+      const P=({l,v,s,vc})=>(<div><div style={{fontSize:'10px',color:C.textMore,letterSpacing:'1px',marginBottom:'4px'}}>{l.toUpperCase()}</div><div style={{fontSize:'17px',fontWeight:600,color:vc||C.text}}>{v}</div><div style={{fontSize:'10px',color:C.textDim}}>{s}</div></div>);
+      const MC=({l,v,s,c2})=>(<div style={{background:C.card,border:'1px solid '+C.border,borderRadius:'10px',padding:'14px'}}><div style={{fontSize:'9px',color:C.textMore,letterSpacing:'1px',marginBottom:'4px'}}>{l.toUpperCase()}</div><div style={{fontSize:'20px',fontWeight:700,color:c2||C.text,lineHeight:'1.1'}}>{v}</div><div style={{fontSize:'10px',color:C.textDim,marginTop:'3px'}}>{s}</div></div>);
+      const R=({l,v,h,t})=>(<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:t?'none':'1px solid '+C.border,borderTop:t?'2px solid '+C.gold:'none',marginTop:t?'6px':'0',paddingTop:t?'12px':'8px'}}><div style={{fontSize:'12px',color:t?C.text:C.textDim,flex:1,paddingRight:'8px'}}>{l}</div><div style={{fontSize:t?'15px':'13px',fontWeight:t?700:500,color:t?C.gold:h?C.green:C.text,whiteSpace:'nowrap'}}>{v}</div></div>);
+
+      return(<div style={{background:C.bg,color:C.text,minHeight:'100vh'}}><div style={{maxWidth:'1100px',margin:'0 auto',padding:'24px 16px'}}>
+        <div style={{marginBottom:'20px'}}><div style={{fontSize:'11px',color:C.gold,letterSpacing:'2px',marginBottom:'4px'}}>TOMS VENTURES × HAIRNERDS JV — V2</div><h1 style={{fontSize:'26px',fontWeight:700,marginBottom:'6px',letterSpacing:'-0.5px'}}>Platform Revenue + Module Strategy Simulator</h1><p style={{color:C.textDim,fontSize:'13px',lineHeight:'1.5'}}>Transaction fees + module upsell + capital runway + exit valuation.</p></div>
+
+        <div style={{display:'flex',gap:'6px',marginBottom:'16px',flexWrap:'wrap'}}>{[{id:'a',l:'HN only'},{id:'b',l:'HN + D2C'},{id:'c',l:'Y1 (+10)'},{id:'d',l:'Y2 (+30 +mods)'},{id:'e',l:'Y3 (+100)'},{id:'f',l:'Y5 (+200)'}].map(p=>(<button key={p.id} onClick={()=>preset(p.id)} style={{background:C.card,color:C.text,border:'1px solid '+C.border,padding:'8px 12px',borderRadius:'6px',fontSize:'12px',cursor:'pointer',fontWeight:500}}>{p.l}</button>))}</div>
+
+        <div style={{marginBottom:'16px'}}><div style={{display:'flex',gap:'0',borderRadius:'10px',overflow:'hidden',border:'1px solid '+C.border}}>{[{id:'pessimistic',l:'Pessimistic',c:C.red},{id:'realistic',l:'Realistic',c:C.gold},{id:'optimistic',l:'Optimistic',c:C.green}].map(m=>{const a=mode===m.id;return(<button key={m.id} onClick={()=>setMode(m.id)} style={{flex:1,background:a?m.c+'15':C.card,color:a?m.c:C.textDim,border:'none',borderRight:m.id!=='optimistic'?'1px solid '+C.border:'none',padding:'12px 8px',fontSize:'13px',cursor:'pointer',fontWeight:600}}>{m.l}</button>);})}</div><div style={{background:mp.color+'10',border:'1px solid '+mp.color+'30',borderRadius:'8px',padding:'8px 12px',marginTop:'6px',fontSize:'11px',color:C.textDim,lineHeight:'1.4'}}><span style={{color:mp.color,fontWeight:600,letterSpacing:'1px'}}>{mp.label}: </span>{mp.desc}</div></div>
+
+        <div style={{background:'linear-gradient(135deg, '+C.card+' 0%, '+C.cardHover+' 100%)',border:'1px solid '+C.gold+'40',borderRadius:'12px',padding:'20px',marginBottom:'16px'}}><div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'4px'}}><div style={{fontSize:'11px',color:C.gold,letterSpacing:'1.5px'}}>YOUR Y1 ANNUAL INCOME</div><div style={{fontSize:'9px',color:mp.color,background:mp.color+'20',border:'1px solid '+mp.color+'40',padding:'2px 8px',borderRadius:'20px',letterSpacing:'1px',fontWeight:600}}>{mp.label}</div></div><div style={{fontSize:'40px',fontWeight:700,color:C.goldBright,lineHeight:'1',marginBottom:'4px'}}>{fmtRp(calc.uInc)}</div><div style={{fontSize:'12px',color:C.textDim,marginBottom:'16px'}}>{oc===0?'Hairnerds only':'Hairnerds + '+oc+' clients'}{hmf&&' • D2C on'}{ma>0&&' • '+ma+'% modules'}</div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(130px, 1fr))',gap:'10px'}}><P l="Salary" v={fmtRp(calc.aSal)} s={'Rp '+calc.mSal+'M/mo'}/><P l={'Royalty '+rr+'%'} v={fmtRp(calc.roy)} s="Off the top"/><P l="Dividend (50%)" v={fmtRp(calc.uDiv)} s={calc.uDiv>0?'Q: '+fmtRp(calc.uDiv/4):'No EBITDA'} vc={calc.uDiv>0?C.green:C.red}/></div></div>
+
+        <div style={{background:C.card,border:'1px solid '+rc+'40',borderRadius:'12px',padding:'16px',marginBottom:'16px'}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'8px'}}><div style={{fontSize:'11px',color:rc,letterSpacing:'1.5px',fontWeight:600}}>💰 CAPITAL RUNWAY</div><div style={{fontSize:'11px',color:C.textDim}}>Rp {cap}M starting</div></div><div style={{display:'flex',alignItems:'baseline',gap:'8px',marginBottom:'8px'}}><div style={{fontSize:'28px',fontWeight:700,color:rc}}>{calc.runway>=999?'∞':calc.runway.toFixed(1)}</div><div style={{fontSize:'13px',color:C.textDim}}>months</div><div style={{marginLeft:'auto',fontSize:'12px',color:C.textDim}}>Burn: <span style={{color:C.text}}>{fmtRp(calc.mBurn)}/mo</span></div></div><div style={{background:C.bg,borderRadius:'6px',height:'8px',overflow:'hidden'}}><div style={{background:rc,height:'100%',width:rbp+'%',transition:'all 0.3s ease'}}/></div></div>
+
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))',gap:'10px',marginBottom:'16px'}}><MC l="JV Revenue" v={fmtRp(calc.tRev)} s={fmtRp(calc.tTx)+' txn + '+fmtRp(calc.tMod)+' mod'} c2={C.gold}/><MC l="COGS" v={fmtRp(calc.tCOGS)} s={Math.round(calc.tTxC).toLocaleString('id-ID')+' txns'} c2={C.purple}/><MC l="Gross Margin" v={fmtPct(calc.gm2)} s={'GP: '+fmtRp(calc.gp)} c2={calc.gm2>50?C.green:calc.gm2>20?C.amber:C.red}/><MC l="EBITDA" v={fmtRp(calc.ebitda)} s={calc.ebitda>0?'Profitable':'Burning'} c2={calc.ebitda>0?C.green:C.red}/></div>
+
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))',gap:'12px',marginBottom:'16px'}}>
+          <div style={{background:C.card,border:'1px solid '+C.border,borderRadius:'12px',padding:'16px'}}><div style={{fontSize:'11px',color:C.gold,letterSpacing:'1.5px',marginBottom:'8px'}}>Y1 REVENUE COMPOSITION</div><ResponsiveContainer width="100%" height={180}><PieChart><Pie data={calc.rc} dataKey="value" cx="50%" cy="50%" outerRadius={65} innerRadius={38} stroke={C.bg}>{calc.rc.map((e,i)=><Cell key={i} fill={e.color}/>)}</Pie><Tooltip contentStyle={{background:C.cardHover,border:'1px solid '+C.border,borderRadius:'8px'}} formatter={v=>fmtRp(v)}/></PieChart></ResponsiveContainer><div style={{fontSize:'10px',color:C.textDim}}>{calc.rc.map((r,i)=>(<div key={i} style={{display:'flex',alignItems:'center',gap:'5px',marginBottom:'2px'}}><span style={{width:'8px',height:'8px',background:r.color,borderRadius:'2px',display:'inline-block'}}/><span style={{flex:1}}>{r.name}</span><span style={{color:C.text}}>{fmtRp(r.value)}</span></div>))}</div></div>
+
+          <div style={{background:C.card,border:'1px solid '+C.border,borderRadius:'12px',padding:'16px'}}><div style={{fontSize:'11px',color:C.gold,letterSpacing:'1.5px',marginBottom:'8px'}}>5-YEAR YOUR INCOME</div><ResponsiveContainer width="100%" height={180}><BarChart data={myd} margin={{top:5,right:5,left:-15,bottom:5}}><CartesianGrid strokeDasharray="3 3" stroke={C.border}/><XAxis dataKey="year" stroke={C.textDim} fontSize={11}/><YAxis stroke={C.textDim} fontSize={10} tickFormatter={v=>(v/1000).toFixed(1)+'B'}/><Tooltip contentStyle={{background:C.cardHover,border:'1px solid '+C.border,borderRadius:'8px'}} formatter={v=>fmtRp(v)}/><Bar dataKey="salary" stackId="a" fill={C.gold} name="Salary"/><Bar dataKey="royalty" stackId="a" fill={C.goldBright} name="Royalty"/><Bar dataKey="dividend" stackId="a" fill={C.green} name="Dividend"/></BarChart></ResponsiveContainer></div>
+
+          <div style={{background:C.card,border:'1px solid '+C.border,borderRadius:'12px',padding:'16px'}}><div style={{fontSize:'11px',color:C.gold,letterSpacing:'1.5px',marginBottom:'8px'}}>JV REVENUE: TXN vs MODULES</div><ResponsiveContainer width="100%" height={180}><AreaChart data={myd} margin={{top:5,right:5,left:-15,bottom:5}}><CartesianGrid strokeDasharray="3 3" stroke={C.border}/><XAxis dataKey="year" stroke={C.textDim} fontSize={11}/><YAxis stroke={C.textDim} fontSize={10} tickFormatter={v=>(v/1000).toFixed(0)+'B'}/><Tooltip contentStyle={{background:C.cardHover,border:'1px solid '+C.border,borderRadius:'8px'}} formatter={v=>fmtRp(v)}/><Area type="monotone" dataKey="txnRevenue" stackId="b" fill={C.gold} stroke={C.gold} fillOpacity={0.6} name="Transactions"/><Area type="monotone" dataKey="moduleRevenue" stackId="b" fill={C.purple} stroke={C.purple} fillOpacity={0.6} name="Modules"/></AreaChart></ResponsiveContainer></div>
+        </div>
+
+        <div style={{background:C.card,border:'1px solid '+C.border,borderRadius:'12px',padding:'18px',marginBottom:'16px'}}><div style={{fontSize:'11px',color:C.gold,letterSpacing:'1.5px',marginBottom:'14px'}}>SCENARIO CONTROLS</div><S l="Other clients" v={oc} set={setOc} min={0} max={200} step={1} d={oc}/><S l="Outlets per client" v={opc} set={setOpc} min={1} max={10} step={1} d={opc}/><S l="Service GMV/outlet/yr (Rp M)" v={gpv} set={setGpv} min={500} max={3000} step={100} d={'Rp '+gpv+'M'}/><S l="📦 Module adoption %" v={ma} set={setMa} min={0} max={100} step={5} d={ma+'%'} a={C.purple}/><S l="💰 Capital (Rp M)" v={cap} set={setCap} min={500} max={5000} step={100} d={'Rp '+cap+'M'} a={C.green}/><div style={{display:'flex',alignItems:'center',gap:'10px',padding:'10px',background:C.cardHover,borderRadius:'8px',marginTop:'8px'}}><input type="checkbox" checked={hmf} onChange={e=>setHmf(e.target.checked)} style={{width:'18px',height:'18px',accentColor:C.gold}}/><div style={{flex:1,fontSize:'12px'}}><div style={{fontWeight:500}}>Hairnerds Pro D2C through marketplace</div><div style={{fontSize:'10px',color:C.textDim}}>Adds Rp 9.3B GMV via 3.5% fee</div></div></div></div>
+
+        <div style={{background:C.card,border:'1px solid '+C.purple+'30',borderRadius:'12px',padding:'18px',marginBottom:'16px'}}><div style={{fontSize:'11px',color:C.purple,letterSpacing:'1.5px',marginBottom:'14px',fontWeight:600}}>📦 MODULE ROADMAP</div><div style={{fontSize:'12px',color:C.textDim,marginBottom:'12px',lineHeight:'1.5'}}>Per 6-outlet chain at 100%: <span style={{color:C.purple,fontWeight:600}}>{fmtRp(modARR(6,100))}/yr</span>. ~90% gross margin.</div><div style={{display:'grid',gap:'6px'}}>{MODS.map(m=>{const arr=m.type==='outlet'?6*m.price*12:m.type==='employee'?6*EPO*m.price*12:m.price*12;return(<div key={m.key} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 10px',background:C.cardHover,borderRadius:'6px',borderLeft:'3px solid '+m.color}}><div><div style={{fontSize:'13px',color:C.text,fontWeight:500}}>{m.name}{m.y3&&<span style={{marginLeft:'8px',fontSize:'9px',color:C.amber,background:C.amber+'20',padding:'2px 6px',borderRadius:'10px'}}>Y3</span>}</div><div style={{fontSize:'10px',color:C.textDim,marginTop:'1px'}}>{m.type==='outlet'?'Rp '+m.price+'M/outlet/mo':m.type==='employee'?'Rp '+(m.price*1000).toFixed(0)+'K/emp/mo':'Rp '+m.price+'M/chain/mo'}</div></div><div style={{fontSize:'13px',color:m.color,fontWeight:600}}>{fmtRp(arr)}/yr</div></div>);})}</div></div>
+
+        <div style={{background:'linear-gradient(135deg, '+C.green+'10 0%, '+C.cardHover+' 100%)',border:'1px solid '+C.green+'40',borderRadius:'12px',padding:'18px',marginBottom:'16px'}}><div style={{fontSize:'11px',color:C.green,letterSpacing:'1.5px',marginBottom:'10px'}}>💎 MATURE CLIENT (5 outlets, 75% modules)</div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))',gap:'12px'}}><div><div style={{fontSize:'10px',color:C.textMore,letterSpacing:'1px',marginBottom:'2px'}}>TXN FEES</div><div style={{fontSize:'18px',fontWeight:700,color:C.gold}}>{fmtRp(mcv.tx)}</div><div style={{fontSize:'10px',color:C.textDim}}>/year</div></div><div><div style={{fontSize:'10px',color:C.textMore,letterSpacing:'1px',marginBottom:'2px'}}>MODULE ARR</div><div style={{fontSize:'18px',fontWeight:700,color:C.purple}}>{fmtRp(mcv.md)}</div><div style={{fontSize:'10px',color:C.textDim}}>/year</div></div><div><div style={{fontSize:'10px',color:C.textMore,letterSpacing:'1px',marginBottom:'2px'}}>TOTAL ARR</div><div style={{fontSize:'22px',fontWeight:700,color:C.green}}>{fmtRp(mcv.total)}</div><div style={{fontSize:'10px',color:C.textDim}}>/year</div></div></div></div>
+
+        <div style={{background:'linear-gradient(135deg, '+C.gold+'10 0%, '+C.cardHover+' 100%)',border:'1px solid '+C.gold+'40',borderRadius:'12px',padding:'18px',marginBottom:'16px'}}><div style={{fontSize:'11px',color:C.gold,letterSpacing:'1.5px',marginBottom:'12px'}}>🚀 Y5 EXIT VALUATION</div><div style={{marginBottom:'14px'}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'4px'}}><div style={{fontSize:'12px',color:C.textDim}}>Revenue multiple</div><div style={{fontSize:'14px',fontWeight:600,color:C.gold}}>{vm}×</div></div><input type="range" min={2} max={15} step={0.5} value={vm} onChange={e=>setVm(parseFloat(e.target.value))} style={{width:'100%',accentColor:C.gold}}/></div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))',gap:'10px'}}><div style={{background:C.bg,padding:'12px',borderRadius:'8px'}}><div style={{fontSize:'10px',color:C.textMore,letterSpacing:'1px'}}>Y5 REV</div><div style={{fontSize:'20px',fontWeight:700,color:C.text}}>{fmtRp(y5R)}</div></div><div style={{background:C.bg,padding:'12px',borderRadius:'8px'}}><div style={{fontSize:'10px',color:C.textMore,letterSpacing:'1px'}}>JV VAL</div><div style={{fontSize:'20px',fontWeight:700,color:C.gold}}>{fmtRp(val)}</div></div><div style={{background:C.bg,padding:'12px',borderRadius:'8px'}}><div style={{fontSize:'10px',color:C.textMore,letterSpacing:'1px'}}>YOUR 50%</div><div style={{fontSize:'20px',fontWeight:700,color:C.green}}>{fmtRp(ue)}</div></div></div></div>
+
+        <div style={{background:C.card,border:'1px solid '+C.border,borderRadius:'12px',padding:'18px',marginBottom:'16px'}}><div style={{fontSize:'11px',color:C.gold,letterSpacing:'1.5px',marginBottom:'12px'}}>HAIRNERDS Y1 BREAKDOWN</div><R l={'Bookings ('+Math.round(calc.hBT).toLocaleString('id-ID')+' txn)'} v={fmtRp(calc.hBR)}/><R l={'Walk-in ('+Math.round(calc.hWT).toLocaleString('id-ID')+' txn)'} v={fmtRp(calc.hWR)}/><R l={'Retail ('+Math.round(calc.hRT).toLocaleString('id-ID')+' txn)'} v={fmtRp(calc.hRR)}/><R l={'Marketplace ('+Math.round(calc.hMT).toLocaleString('id-ID')+' txn)'} v={fmtRp(calc.hMR)} h/><R l={'Module ARR ('+ma+'% × '+HN.outlets+' outlets)'} v={fmtRp(calc.hMod)}/><R l="Total Hairnerds" v={fmtRp(calc.hTx+calc.hMod)} t/></div>
+
+        <button onClick={()=>setAdv(!adv)} style={{background:'transparent',color:C.textDim,border:'1px solid '+C.border,padding:'10px 16px',borderRadius:'8px',fontSize:'12px',cursor:'pointer',width:'100%',fontWeight:500,marginBottom:'16px'}}>{adv?'▲ Hide':'▼ Show'} Advanced Settings</button>
+        {adv&&(<div style={{background:C.card,border:'1px solid '+C.border,borderRadius:'12px',padding:'18px',marginBottom:'16px'}}><div style={{fontSize:'11px',color:C.gold,letterSpacing:'1.5px',marginBottom:'14px'}}>ADVANCED</div><S l="Booking fee %" v={br} set={setBr} min={1} max={10} step={0.5} d={br+'%'}/><S l="Booking min (Rp)" v={bm} set={setBm} min={3000} max={15000} step={500} d={'Rp '+bm.toLocaleString('id-ID')}/><S l="POS fee %" v={pr} set={setPr} min={1} max={6} step={0.25} d={pr+'%'}/><S l="POS min (Rp)" v={pm} set={setPm} min={1000} max={8000} step={250} d={'Rp '+pm.toLocaleString('id-ID')}/><S l="Marketplace fee %" v={mr} set={setMr} min={1} max={10} step={0.25} d={mr+'%'}/><S l="Marketplace min (Rp)" v={mm} set={setMm} min={1000} max={10000} step={250} d={'Rp '+mm.toLocaleString('id-ID')}/><S l="Royalty %" v={rr} set={setRr} min={0} max={15} step={0.5} d={rr+'%'}/><S l="Booking ratio %" v={brt} set={setBrt} min={30} max={100} step={5} d={brt+'%'}/><S l="Base salary (Rp M/mo)" v={bs} set={setBs} min={20} max={150} step={5} d={'Rp '+bs+'M'}/><S l="Salary step (clients)" v={ss} set={setSs} min={1} max={20} step={1} d={ss}/><S l="Salary increment (Rp M)" v={si} set={setSi} min={1} max={20} step={1} d={'Rp '+si+'M'}/></div>)}
+
+        <div style={{textAlign:'center',fontSize:'10px',color:C.textMore,padding:'20px 0',borderTop:'1px solid '+C.border,marginTop:'24px'}}>HN Y1: 6 outlets · Rp 12B services · Rp 2.5B retail · Rp 5.28-14.6B e-commerce<br/>COGS: Rp 1,500-3,500/txn + Rp 250M/yr cloud + 10% module<br/>Modules: Rp 1.5-3M per outlet/chain × adoption% × 12mo</div>
+      </div></div>);
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  </script>
 </body>
 </html>
